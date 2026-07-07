@@ -26,6 +26,8 @@ The simulation uses an eulerian approach (in opposition to the lagrangian approa
 At each frame, several compute shaders operate on this texture, to solve numerically each step of the simulation. Finally, the 3D texture is sent to a fragment shader that renders the geometry, and the cloud volume using raymarching.
 
 ## Gallery
+![image](https://github.com/user-attachments/assets/ed2e5a36-9680-4ebf-936c-db5e101cc080)
+
 ![image](https://github.com/user-attachments/assets/9754b750-d1f7-4d6f-b737-fe422711c890)
 
 ![image](https://github.com/user-attachments/assets/7a547c99-622e-44ad-a853-497e3858fefb)
