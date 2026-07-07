@@ -7,123 +7,126 @@
 #include "compute_shader.hpp"
 
 class Simulation {
-public:
-    Texture3D densVelTexture{};
-    Texture3D divergenceTexture{};
-    Texture3D divFreeTexture{};
-    Texture3D curlTexture{};
+   public:
+	Texture3D densVelTexture{};
+	Texture3D divergenceTexture{};
+	Texture3D divFreeTexture{};
+	Texture3D curlTexture{};
 
-    ComputeShader volumeGenShader{};
-    ComputeShader diffuseShader{};
-    ComputeShader advectShader{};
-    ComputeShader divShader{};
-    ComputeShader solveDivShader{};
-    ComputeShader nablaGShader{};
-    ComputeShader curlShader{};
-    ComputeShader confForceShader{};
+	ComputeShader volumeGenShader{};
+	ComputeShader diffuseShader{};
+	ComputeShader advectShader{};
+	ComputeShader divShader{};
+	ComputeShader solveDivShader{};
+	ComputeShader nablaGShader{};
+	ComputeShader curlShader{};
+	ComputeShader confForceShader{};
 
-    GLuint dimXZ{};
-    GLuint dimY{};
+	GLuint dimXZ{};
+	GLuint dimY{};
 
-    std::vector<float> data{};
+	std::vector<float> data{};
 
-public:
-    Simulation() {
-        dimXZ = 128;
-        dimY = 128;
-    }
-    ~Simulation() {
-    }
+	float m_conf = 3.0f;
 
-    int index(int x, int y, int z, int channel) {
-        return 4 * (x + y * dimXZ + z * dimXZ * dimY) + channel;
-    }
+   public:
+	Simulation() {
+		dimXZ = 128;
+		dimY = 128;
+	}
+	~Simulation() {
+	}
 
-    void init_textures() {
-        volumeGenShader.init("../data/shaders/compute/volume_gen.glsl", dimXZ, dimY);
-        diffuseShader.init("../data/shaders/compute/diffuse.glsl", dimXZ, dimY);
-        advectShader.init("../data/shaders/compute/advect.glsl", dimXZ, dimY);
-        divShader.init("../data/shaders/compute/div.glsl", dimXZ, dimY);
-        solveDivShader.init("../data/shaders/compute/solve_div.glsl", dimXZ, dimY);
-        nablaGShader.init("../data/shaders/compute/nabla_g.glsl", dimXZ, dimY);
-        curlShader.init("../data/shaders/compute/curl.glsl", dimXZ, dimY);
-        confForceShader.init("../data/shaders/compute/conf_force.glsl", dimXZ, dimY);
+	int index(int x, int y, int z, int channel) {
+		return 4 * (x + y * dimXZ + z * dimXZ * dimY) + channel;
+	}
 
-        densVelTexture.init(dimXZ, dimY);
+	void init_textures() {
+		volumeGenShader.init("../../data/shaders/compute/volume_gen.glsl", dimXZ, dimY);
+		diffuseShader.init("../../data/shaders/compute/diffuse.glsl", dimXZ, dimY);
+		advectShader.init("../../data/shaders/compute/advect.glsl", dimXZ, dimY);
+		divShader.init("../../data/shaders/compute/div.glsl", dimXZ, dimY);
+		solveDivShader.init("../../data/shaders/compute/solve_div.glsl", dimXZ, dimY);
+		nablaGShader.init("../../data/shaders/compute/nabla_g.glsl", dimXZ, dimY);
+		curlShader.init("../../data/shaders/compute/curl.glsl", dimXZ, dimY);
+		confForceShader.init("../../data/shaders/compute/conf_force.glsl", dimXZ, dimY);
 
-        volumeGenShader.use();
+		densVelTexture.init(dimXZ, dimY);
 
-        volumeGenShader.run({}, {}, &densVelTexture);
+		volumeGenShader.use();
 
-        divergenceTexture.init(dimXZ, dimY);
+		volumeGenShader.run({}, {}, &densVelTexture);
 
-        std::vector<float> zeroData(dimXZ * dimY * dimXZ * 4, 0.0f);
-        divFreeTexture.init(dimXZ, dimY, zeroData);
-        curlTexture.init(dimXZ, dimY, zeroData);
-    }
+		divergenceTexture.init(dimXZ, dimY);
 
-    void simulationStep(glm::vec3 targetSize, glm::vec3 targetOffest, float dt) {
-        diffuseShader.use();
+		std::vector<float> zeroData(dimXZ * dimY * dimXZ * 4, 0.0f);
+		divFreeTexture.init(dimXZ, dimY, zeroData);
+		curlTexture.init(dimXZ, dimY, zeroData);
+	}
 
-        setUniform(diffuseShader.id(), "dt", dt);
-        setUniform(diffuseShader.id(), "mu_density", 0.005f);
-        setUniform(diffuseShader.id(), "mu_velocity", 0.001f);
+	void simulationStep(glm::vec3 targetSize, glm::vec3 targetOffest, float dt) {
+		diffuseShader.use();
 
-        for (int i = 0; i < 5; i++) {
-            diffuseShader.run({ &densVelTexture }, { "u_inputImg" }, &densVelTexture);
-        }
+		setUniform(diffuseShader.id(), "dt", dt);
+		setUniform(diffuseShader.id(), "mu_density", 0.005f);
+		setUniform(diffuseShader.id(), "mu_velocity", 0.001f);
 
-        advectShader.use();
+		for (int i = 0; i < 5; i++) {
+			diffuseShader.run({&densVelTexture}, {"u_inputImg"}, &densVelTexture);
+		}
 
-        setUniform(advectShader.id(), "dt", dt);
-        setUniform(advectShader.id(), "u_mask", glm::vec4(0.0f, 1.0f, 1.0f, 1.0f));
+		advectShader.use();
 
-        advectShader.run({ &densVelTexture, &densVelTexture }, { "u_inputImg", "u_velocity" }, &densVelTexture);
+		setUniform(advectShader.id(), "dt", dt);
+		setUniform(advectShader.id(), "u_mask", glm::vec4(0.0f, 1.0f, 1.0f, 1.0f));
 
-        curlShader.use();
-        curlShader.run({ &densVelTexture }, { "u_inputImg" }, &curlTexture);
+		advectShader.run({&densVelTexture, &densVelTexture}, {"u_inputImg", "u_velocity"}, &densVelTexture);
 
-        confForceShader.use();
-        setUniform(confForceShader.id(), "dt", dt);
-        confForceShader.run({ &densVelTexture, &curlTexture }, { "u_inputImg", "u_curl" }, &densVelTexture);
+		curlShader.use();
+		curlShader.run({&densVelTexture}, {"u_inputImg"}, &curlTexture);
 
-        divShader.use();
-        divShader.run({ &densVelTexture }, { "u_inputImg" }, &divergenceTexture);
+		confForceShader.use();
+		setUniform(confForceShader.id(), "dt", dt);
+		setUniform(confForceShader.id(), "confinement", m_conf);
+		confForceShader.run({&densVelTexture, &curlTexture}, {"u_inputImg", "u_curl"}, &densVelTexture);
 
-        solveDivShader.use();
-        for (int i = 0; i < 10; i++) {
-            setUniform(solveDivShader.id(), "first_time", i == 0 ? 1 : 0);
-            solveDivShader.run({ &divFreeTexture, &divergenceTexture }, { "u_inputImg", "u_divergence" }, &divFreeTexture);
-        }
+		divShader.use();
+		divShader.run({&densVelTexture}, {"u_inputImg"}, &divergenceTexture);
 
-        nablaGShader.use();
-        nablaGShader.run({ &divFreeTexture, &densVelTexture }, { "u_inputImg", "u_velocity" }, &densVelTexture);
+		solveDivShader.use();
+		for (int i = 0; i < 25; i++) {
+			setUniform(solveDivShader.id(), "first_time", i == 0 ? 1 : 0);
+			solveDivShader.run({&divFreeTexture, &divergenceTexture}, {"u_inputImg", "u_divergence"}, &divFreeTexture);
+		}
 
-        advectShader.use();
+		nablaGShader.use();
+		nablaGShader.run({&divFreeTexture, &densVelTexture}, {"u_inputImg", "u_velocity"}, &densVelTexture);
 
-        setUniform(advectShader.id(), "dt", dt);
-        setUniform(advectShader.id(), "u_mask", glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
+		advectShader.use();
 
-        advectShader.run({ &densVelTexture, &densVelTexture }, { "u_inputImg", "u_velocity" }, &densVelTexture);
+		setUniform(advectShader.id(), "dt", dt);
+		setUniform(advectShader.id(), "u_mask", glm::vec4(1.0f, 0.0f, 0.0f, 0.0f));
 
-        glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
-        glBindTexture(GL_TEXTURE_3D, 0);
+		advectShader.run({&densVelTexture, &densVelTexture}, {"u_inputImg", "u_velocity"}, &densVelTexture);
 
-        glUseProgram(0);
-    }
+		glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+		glBindTexture(GL_TEXTURE_3D, 0);
 
-    GLuint getTextureID(int tex) {
-        switch (tex) {
-        case 1:
-            return divergenceTexture.textureID;
-        case 2:
-            return divFreeTexture.textureID;
-        case 3:
-            return curlTexture.textureID;
-        default:
-            return densVelTexture.textureID;
-        }
-    }
+		glUseProgram(0);
+	}
+
+	GLuint getTextureID(int tex) {
+		switch (tex) {
+			case 1:
+				return divergenceTexture.textureID;
+			case 2:
+				return divFreeTexture.textureID;
+			case 3:
+				return curlTexture.textureID;
+			default:
+				return densVelTexture.textureID;
+		}
+	}
 };
 
-#endif // voxeltexture.hpp
+#endif	// voxeltexture.hpp

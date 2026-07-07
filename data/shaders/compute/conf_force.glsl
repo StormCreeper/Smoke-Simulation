@@ -9,9 +9,9 @@ uniform sampler3D u_curl;
 
 uniform float dt;
 
-void main() {
-    // Compute divergence of the velocity field (gba components)
+uniform float confinement;
 
+void main() {
     ivec3 dims = imageSize(img_output);
     ivec3 coords = ivec3(gl_GlobalInvocationID.xyz);
 
@@ -22,7 +22,7 @@ void main() {
     vec4 base_val = texelFetch(u_inputImg, coords, 0);
 
     vec3 curl = texelFetch(u_curl, coords, 0).gba;
-    
+
     vec3 grad_curl = vec3(
         texelFetch(u_curl, coords + ivec3(1, 0, 0), 0).r - texelFetch(u_curl, coords - ivec3(1, 0, 0), 0).r,
         texelFetch(u_curl, coords + ivec3(0, 1, 0), 0).r - texelFetch(u_curl, coords - ivec3(0, 1, 0), 0).r,
@@ -30,8 +30,6 @@ void main() {
     ) * 0.5;
 
     grad_curl = grad_curl / (length(grad_curl) + 0.00001f);
-
-    float confinement = 3.0f;
 
     vec3 f_conf = dt * confinement * cross(grad_curl, curl);
 
